@@ -1,18 +1,16 @@
-import { useEffect } from "react";
-import { useTable, usePagination, useSortBy } from "react-table";
+import React, { useState, useEffect, useCallback } from "react";
+import { useTable, useSortBy, usePagination } from "react-table";
+import makeData from "../../util/makeData";
 
-// Let's add a fetchData method to our Table component that will be used to fetch
-// new data when pagination state changes
-// We can also add a loading state to let our table know it's loading new data
+const serverData = makeData(1000);
 
-// 데이터를 받아서 그려주는 역할 + 부모가 넘겨준 dataFetch함수에 pageIndex,pageCount를 넘겨서 실행해줌
-function PageTable({
+function Table({
   columns,
   data,
+  onSort,
   fetchData,
   loading,
   pageCount: controlledPageCount,
-  onSort,
 }) {
   const {
     getTableProps,
@@ -23,62 +21,41 @@ function PageTable({
     canPreviousPage,
     canNextPage,
     pageOptions,
-    pageCount,
     gotoPage,
     nextPage,
     previousPage,
     setPageSize,
-    // Get the state from the instance
     state: { pageIndex, pageSize, sortBy },
   } = useTable(
     {
       columns,
       data,
-      initialState: { pageIndex: 0 }, // Pass our hoisted table state
-      manualPagination: true, // Tell the usePagination
-      // hook that we'll handle our own data fetching
-      // This means we'll also have to provide our own
-      // pageCount.
-      pageCount: controlledPageCount,
+      manualPagination: true,
       manualSortBy: true,
-      autoResetPage: false, // true ->manualPagination === false && data or sortBy 변경시 pageIndex초기화 => 부모의 과한 리렌더링을 부를 수 있다.
-      autoResetSortBy: false, // true -> data변경시 sortBy :{desc:string,id:string}초기화 => 부모의 과한 리렌더링을 부를 수 있다.
+      autoResetPage: false,
+      autoResetSortBy: false,
+      pageCount: controlledPageCount,
     },
     useSortBy,
     usePagination
   );
 
-  // Listen for changes in pagination and use the state to fetch our new data
   useEffect(() => {
-    console.log("Pagination Child useEffect");
     fetchData({ pageIndex, pageSize, sortBy });
   }, [sortBy, fetchData, pageIndex, pageSize]);
 
-  // Render the UI for your table
   return (
     <>
-      <pre>
-        <code>
-          {JSON.stringify(
-            {
-              pageIndex,
-              pageSize,
-              pageCount,
-              canNextPage,
-              canPreviousPage,
-            },
-            null,
-            2
-          )}
-        </code>
-      </pre>
       <table {...getTableProps()}>
         <thead>
           {headerGroups.map((headerGroup) => (
             <tr {...headerGroup.getHeaderGroupProps()}>
               {headerGroup.headers.map((column) => (
+                // Add the sorting props to control sorting. For this example
+                // we can add them into the header props
                 <th {...column.getHeaderProps(column.getSortByToggleProps())}>
                   {column.render("Header")}
+                  {/* Add a sort direction indicator */}
                   <span>
                     {column.isSorted
                       ? column.isSortedDesc
@@ -106,6 +83,7 @@ function PageTable({
           })}
           <tr>
             {loading ? (
+              // Use our custom loading state to show a loading indicator
               <td colSpan="10000">Loading...</td>
             ) : (
               <td colSpan="10000">
@@ -163,4 +141,81 @@ function PageTable({
     </>
   );
 }
-export default PageTable;
+
+function App() {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = React.useState(false);
+  const [pageCount, setPageCount] = React.useState(0);
+  const fetchIdRef = React.useRef(0);
+  const sortIdRef = React.useRef(0);
+
+  const columns = React.useMemo(
+    () => [
+      {
+        Header: "First Name",
+        accessor: "firstName",
+      },
+      {
+        Header: "Last Name",
+        accessor: "lastName",
+      },
+    ],
+    []
+  );
+
+  const fetchData = React.useCallback(({ pageSize, pageIndex, sortBy }) => {
+    // This will get called when the table needs new data
+    // You could fetch your data from literally anywhere,
+    // even a server. But for this example, we'll just fake it.
+
+    // Give this fetch an ID
+    const fetchId = ++fetchIdRef.current;
+
+    // Set the loading state
+    setLoading(true);
+    console.log("sortBy:", sortBy);
+    // We'll even set a delay to simulate a server here
+    // Only update the data if this is the latest fetch
+    if (fetchId === fetchIdRef.current) {
+      const startRow = pageSize * pageIndex;
+      const endRow = startRow + pageSize;
+      if (sortBy.length === 0) {
+        setData(serverData.sort().slice(startRow, endRow));
+      } else {
+        setData(
+          serverData
+            .sort((a, b) => {
+              const field = sortBy[0].id;
+              const desc = sortBy[0].desc;
+              if (a[field] < b[field]) {
+                return desc ? -1 : 1;
+              }
+              if (a[field] > b[field]) {
+                return desc ? 1 : -1;
+              }
+              return 0;
+            })
+            .slice(startRow, endRow)
+        );
+      }
+
+      // Your server could send back total page count.
+      // For now we'll just fake it, too
+      setPageCount(Math.ceil(serverData.length / pageSize));
+
+      setLoading(false);
+    }
+  }, []);
+
+  return (
+    <Table
+      columns={columns}
+      data={data}
+      fetchData={fetchData}
+      loading={loading}
+      pageCount={pageCount}
+    />
+  );
+}
+
+export default App;

@@ -3,6 +3,7 @@ import React from "react";
 import makeData from "../../util/makeData";
 import PageTable from "./PageTable";
 import { Styles } from "./PageTableStyle";
+import SortTable from "./SortTable";
 
 // 데이터를 들고 있음 + api요청하는 부모 컴포넌트
 const serverData = makeData(1000);
@@ -29,7 +30,8 @@ function Table() {
   const [loading, setLoading] = React.useState(false);
   const [pageCount, setPageCount] = React.useState(0);
 
-  const fetchData = React.useCallback(({ pageSize, pageIndex }) => {
+  const fetchData = React.useCallback(({ pageSize, pageIndex, sortBy }) => {
+    console.log("sortBy:", sortBy);
     setLoading(true);
     setTimeout(async () => {
       const startRow = pageSize * pageIndex;
@@ -62,6 +64,13 @@ function Table() {
         loading={loading}
         pageCount={pageCount}
       />
+      {/* <SortTable
+        columns={columns}
+        data={data}
+        fetchData={fetchData}
+        loading={loading}
+        pageCount={pageCount}
+      /> */}
     </Styles>
   );
 }
