@@ -1,5 +1,6 @@
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useTable, usePagination, useSortBy } from "react-table";
+import Toast from "../toast";
 
 // Let's add a fetchData method to our Table component that will be used to fetch
 // new data when pagination state changes
@@ -47,6 +48,7 @@ function PageTable({
     useSortBy,
     usePagination
   );
+  const pageLimit = useMemo(() => [10, 20, 30, 40, 50], []);
 
   // Listen for changes in pagination and use the state to fetch our new data
   useEffect(() => {
@@ -153,13 +155,14 @@ function PageTable({
             setPageSize(Number(e.target.value));
           }}
         >
-          {[10, 20, 30, 40, 50].map((pageSize) => (
+          {pageLimit.map((pageSize) => (
             <option key={pageSize} value={pageSize}>
               Show {pageSize}
             </option>
           ))}
         </select>
       </div>
+      <Toast />
     </>
   );
 }
